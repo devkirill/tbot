@@ -1,7 +1,6 @@
 package com.project.tbot
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.telegram.telegrambots.ApiContextInitializer
 import org.telegram.telegrambots.meta.TelegramBotsApi
@@ -11,9 +10,6 @@ import javax.annotation.PostConstruct
 
 @SpringBootApplication
 class TBotApplication {
-    @Value("\${token}")
-    lateinit var token: String
-
     private final val botApi = TelegramBotsApi()
 
     @Autowired
