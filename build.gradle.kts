@@ -34,6 +34,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
+    implementation("org.jsoup:jsoup:1.13.1")
     implementation("org.telegram:telegrambots:4.9.1")
     implementation("org.telegram:telegrambotsextensions:4.9.1")
 }
