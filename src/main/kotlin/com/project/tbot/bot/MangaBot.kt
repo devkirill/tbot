@@ -1,7 +1,12 @@
 package com.project.tbot.bot
 
+import com.project.tbot.model.Manga
+import com.project.tbot.model.Subscribe
+import com.project.tbot.service.Storage
 import org.jsoup.Jsoup
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
@@ -19,6 +24,9 @@ class MangaBot : TelegramLongPollingBot() {
     @Value("\${token}")
     lateinit var token: String
 
+    @Autowired
+    lateinit var storage: Storage
+
     override fun getBotToken() = token
 
     override fun getBotUsername() = "NAME"
@@ -27,48 +35,91 @@ class MangaBot : TelegramLongPollingBot() {
         val msg = update.message
 
         val txt: String = msg.text
-        if (txt == "/start") {
-            msg.sendMsg("Hello, world! This is simple bot!")
-        } else if (txt == "one-piece") {
-            val doc = Jsoup.connect("https://naruto-base.su/news/manga_van_pis_990_glava/2020-09-11-6318").get()
-            msg.sendMsg(doc.title())
-            val urls = doc.select("div.yellowBox div a[rel~=iLoad]")
-                    .map { element ->
-                        val href = element.attr("href")
-                        "https://naruto-base.su$href"
+        when {
+            txt == "/start" -> {
+                msg.sendMsg("Hello, world! This is simple bot!")
+            }
+            txt.startsWith("subscribe ") -> {
+                val url = txt.substringAfter(" ")
+                storage.save(Subscribe(msg.chatId, url))
+                println(url)
+            }
+        }
+    }
+
+    @Scheduled(initialDelay = 2000, fixedDelay = 10 * 60 * 1000)
+    fun update() {
+        val subscribes = storage.getAll<Subscribe>().groupBy({ it.url }) { it.chatId }
+        val mangas = storage.getAll<Manga>().map { it.url to it.latest }.toMap().toMutableMap()
+        for (s in subscribes) {
+            val latest = mangas[s.key] ?: "0"
+            val url = URL(s.key)
+            when (url.host) {
+                "naruto-base.su" -> {
+                    val latestId = latest.replace(Regex("\\D"), "").toInt()
+                    val list = Jsoup.connect(s.key).get()
+                            .select("#allEntries div.title a")
+                            .map { it.text() to "https://naruto-base.su${it.attr("href")}" }
+                            .filter { it.first.replace(Regex("\\D"), "").toInt() > latestId }
+                            .sortedBy { it.first.replace(Regex("\\D"), "").toInt() }
+                    if (list.isNotEmpty()) {
+                        var newLatest = latest
+                        for (i in list) {
+                            val doc = Jsoup.connect(i.second).get()
+                            val urls = doc.select("div.yellowBox div a[rel~=iLoad]")
+                                    .map { element ->
+                                        val href = element.attr("href")
+                                        "https://naruto-base.su$href"
+                                    }
+                            if (urls.isNotEmpty()) {
+                                for (chatId in s.value) {
+                                    sendImages(chatId, urls)
+                                }
+                                newLatest = i.first
+                            }
+                        }
+                        if (latest != newLatest)
+                            storage.save(Manga(s.key, newLatest))
                     }
-            msg.sendImages(urls)
+                }
+            }
         }
     }
 
-    private fun Message.sendMsg(text: String) {
-        val s = SendMessage()
-        s.setChatId(chatId) // Боту может писать не один человек, и поэтому чтобы отправить сообщение, грубо говоря нужно узнать куда его отправлять
-        println(chatId)
-        s.text = text
-        try { //Чтобы не крашнулась программа при вылете Exception
-            execute(s)
-        } catch (e: TelegramApiException) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun Message.sendImage(url: String) {
-        val s = SendPhoto()
-        s.setChatId(chatId)
-        println(chatId)
-        s.setPhoto(url, URL(url).openStream())
+    private fun sendMsg(chatId: Long, text: String) {
         try {
+            println(chatId)
+
+            val s = SendMessage()
+            s.setChatId(chatId)
+            s.text = text
             execute(s)
         } catch (e: TelegramApiException) {
             e.printStackTrace()
         }
     }
 
-    private fun Message.sendImages(urls: List<String>) {
+    private infix fun Message.sendMsg(text: String) = sendMsg(chatId, text)
+
+    private fun sendImage(chatId: Long, url: String) {
+        try {
+            println(chatId)
+
+            val s = SendPhoto()
+            s.setChatId(chatId)
+            s.setPhoto(url, URL(url).openStream())
+            execute(s)
+        } catch (e: TelegramApiException) {
+            e.printStackTrace()
+        }
+    }
+
+    private infix fun Message.sendImage(url: String) = sendImage(chatId, url)
+
+    private fun sendImages(chatId: Long, urls: List<String>) {
         val count = urls.size
         if (count == 1) {
-            this.sendImage(urls.first())
+            sendImage(chatId, urls.first())
             return
         }
 
@@ -93,4 +144,6 @@ class MangaBot : TelegramLongPollingBot() {
             sendPart(urls.subList(from, to))
         }
     }
+
+    private infix fun Message.sendImages(urls: List<String>) = sendImages(chatId, urls)
 }

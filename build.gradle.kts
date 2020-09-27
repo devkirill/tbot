@@ -35,6 +35,9 @@ dependencies {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
     implementation("org.jsoup:jsoup:1.13.1")
+    implementation("com.google.code.gson:gson:2.8.5")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.3.72")
+    implementation("io.ktor:ktor-client-cio:1.3.1")
     implementation("org.telegram:telegrambots:4.9.1")
     implementation("org.telegram:telegrambotsextensions:4.9.1")
 }
