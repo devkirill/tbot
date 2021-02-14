@@ -57,7 +57,7 @@ class RssUpdate {
             for (post in feed.posts.reversed()) {
                 val guid = post.guid ?: post.link
                 val chatId = subscribe.chatId
-                if (sended.none { it.chatId == chatId && it.postId == guid }) {
+                if (sended.none { it.chatId == chatId && it.guid == guid }) {
                     try {
                         val imageList = splitImagesForParts(post.images)
                         println(subscribe.chatId)
@@ -76,7 +76,7 @@ class RssUpdate {
                         }
                         bot.execute(s)
 
-                        storage.save(Sended(chatId = chatId, postId = guid))
+                        storage.save(Sended(chatId = chatId, guid = guid))
                     } catch (e: TelegramApiException) {
                         e.printStackTrace()
                     }

@@ -60,7 +60,7 @@ class Storage(@Value("\${storage.address:http://192.168.9.111:9200}") val addres
     final inline fun <reified T> getAll() = getAll(T::class.java)
 
     fun <T : Any> getUid(obj: T): String = when (obj) {
-        is Sended -> "${obj.chatId}/${obj.postId}".md5
+        is Sended -> "${obj.chatId}/${obj.guid}".md5
         is Subscribe -> "${obj.chatId}/${obj.rss}".md5
         else -> throw IllegalStateException("")
     }
