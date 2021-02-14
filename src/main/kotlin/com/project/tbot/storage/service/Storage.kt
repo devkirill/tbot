@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
 @Service
-class Storage(@Value("\${storage.address:http://192.168.9.111:9200}") val address: String) {
+class Storage(@Value("\${storage.address:}") val address: String) {
     fun <T : Any> save(obj: T) {
         val name = obj::class.simpleName!!.toLowerCase()
         val content = Gson().toJson(obj)
