@@ -1,6 +1,8 @@
 package com.project.tbot.parser
 
 import com.project.tbot.bot.TBot
+import com.project.tbot.parser.model.Feed
+import com.project.tbot.parser.model.Post
 import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
 import com.project.tbot.storage.service.Storage
@@ -48,39 +50,47 @@ class RssUpdate {
 
     @Scheduled(initialDelay = 2000, fixedDelay = 10 * 60 * 1000)
     fun update() {
-        val sended = storage.getAll<Sended>()
         val list = storage.getAll<Subscribe>()
 
         list.map { subscribe ->
-            val feed = parser.parseRss(getContent(subscribe.rss))
+            val feed = getFeed(subscribe)
 
             for (post in feed.posts.reversed()) {
-                val guid = post.guid ?: post.link
                 val chatId = subscribe.chatId
-                if (sended.none { it.chatId == chatId && it.guid == guid }) {
-                    try {
-                        val imageList = splitImagesForParts(post.images)
-                        println(subscribe.chatId)
 
-                        val s = SendMessage()
-                        s.setChatId(subscribe.chatId)
-                        s.text = post.description
+                send(chatId, post)
+            }
+        }
+    }
+
+    fun getFeed(subscribe: Subscribe): Feed = parser.parseRss(getContent(subscribe.rss))
+
+    fun send(chatId: Long, post: Post) {
+        val sended = storage.getAll<Sended>()
+
+        val guid = post.guid ?: post.link
+        if (sended.none { it.chatId == chatId && it.guid == guid }) {
+            try {
+                val imageList = splitImagesForParts(post.images)
+                println(chatId)
+
+                val s = SendMessage()
+                s.setChatId(chatId)
+                s.text = post.description
 //                        s.enableHtml(true)
-                        if (post.link.isNotBlank()) {
-                            val linkButton = InlineKeyboardButton(post.title)
-                            linkButton.url = post.link
+                if (post.link.isNotBlank()) {
+                    val linkButton = InlineKeyboardButton(post.title)
+                    linkButton.url = post.link
 
-                            val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
+                    val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
 
-                            s.replyMarkup = keyboard
-                        }
-                        bot.execute(s)
-
-                        storage.save(Sended(chatId = chatId, guid = guid))
-                    } catch (e: TelegramApiException) {
-                        e.printStackTrace()
-                    }
+                    s.replyMarkup = keyboard
                 }
+                bot.execute(s)
+
+                storage.save(Sended(chatId = chatId, guid = guid))
+            } catch (e: TelegramApiException) {
+                e.printStackTrace()
             }
         }
     }

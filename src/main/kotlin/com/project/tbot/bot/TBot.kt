@@ -1,5 +1,7 @@
 package com.project.tbot.bot
 
+import com.project.tbot.parser.RssUpdate
+import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
 import com.project.tbot.storage.service.Storage
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,6 +22,9 @@ class TBot : TelegramLongPollingBot() {
     @Autowired
     lateinit var storage: Storage
 
+    @Autowired
+    lateinit var rssUpdate: RssUpdate
+
     override fun getBotToken() = token
 
     override fun getBotUsername() = "RSS bot"
@@ -34,13 +39,21 @@ class TBot : TelegramLongPollingBot() {
             }
             txt.startsWith("/add ") -> {
                 val url = txt.substringAfter(" ")
-                storage.save(Subscribe(msg.chatId, url))
+                val chatId = msg.chatId
+                val subscribe = Subscribe(chatId, url)
+
+                storage.save(subscribe)
+                val feed = rssUpdate.getFeed(subscribe)
+
+                for (post in feed.posts.subList(0, 3).reversed()) {
+                    rssUpdate.send(chatId, post)
+                }
+                val othersPosts = feed.posts.subList(3, feed.posts.size)
+                othersPosts.forEach { post ->
+                    val guid = post.guid ?: post.link
+                    storage.save(Sended(chatId = chatId, guid = guid))
+                }
             }
-//            txt.startsWith("subscribe ") -> {
-//                val url = txt.substringAfter(" ")
-//                storage.save(Subscribe(msg.chatId, url))
-//                println(url)
-//            }
         }
     }
 
