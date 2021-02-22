@@ -9,7 +9,9 @@ import com.project.tbot.storage.service.Storage
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
@@ -73,6 +75,16 @@ class RssUpdate {
             try {
                 val imageList = splitImagesForParts(post.images)
                 println(chatId)
+                println(imageList)
+
+                if (imageList.isNotEmpty()) {
+                    for (list in imageList) {
+                        val group = SendMediaGroup()
+                        group.setChatId(chatId)
+                        group.media = list.map { InputMediaPhoto().setMedia(URL(it).openStream(), it) }
+                        bot.execute(group)
+                    }
+                }
 
                 val s = SendMessage()
                 s.setChatId(chatId)

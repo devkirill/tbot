@@ -4,6 +4,7 @@ import com.project.tbot.parser.model.Feed
 import com.project.tbot.parser.model.Post
 import org.springframework.stereotype.Service
 import org.w3c.dom.Document
+import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
 import java.io.InputStream
@@ -45,11 +46,12 @@ class XPathParser {
                         title = node.getValue("title")
                         description = node.getValue("description")
                         images = node.getValues("images")
+                        images += node.findNodes("enclosure")
+                            .map { it as? Element }
+                            .mapNotNull { it?.getAttribute("url") }
                         category = node.getValues("category")
                     }
                 }
-
-            this.posts = this.posts.subList(0, 3)
         }
     }
 
@@ -77,23 +79,25 @@ class XPathParser {
         }
     }
 
-    fun Node.getValues(path: String): List<String> {
-        return try {
+    fun Node.getValues(path: String): List<String> = findNodes(path).map { it.textContent }
+
+    fun Node.findNodes(path: String): List<Node> {
+        try {
             if (path.trim { it <= ' ' }.isEmpty()) return listOf()
 
             val xPath: XPath = XPathFactory.newInstance().newXPath()
 
-            val result = mutableListOf<String>()
+            val result = mutableListOf<Node>()
             val nodeList = xPath.compile(path).evaluate(this, XPathConstants.NODESET)
 
             if (nodeList is NodeList) {
                 for (i in 0 until nodeList.length) {
                     val node = nodeList.item(i)
-                    val value = node.textContent
-                    result.add(value)
+                    result.add(node)
                 }
             }
-            result
+
+            return result
         } catch (e: Exception) {
             throw IllegalStateException(e)
         }
