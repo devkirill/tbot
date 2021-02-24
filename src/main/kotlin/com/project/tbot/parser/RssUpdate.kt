@@ -56,12 +56,16 @@ class RssUpdate {
         val list = storage.getAll<Subscribe>()
 
         list.map { subscribe ->
-            val feed = getFeed(subscribe)
+            try {
+                val feed = getFeed(subscribe)
 
-            for (post in feed.posts.reversed()) {
-                val chatId = subscribe.chatId
+                for (post in feed.posts.reversed()) {
+                    val chatId = subscribe.chatId
 
-                send(chatId, post)
+                    send(chatId, post)
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
             }
         }
     }
