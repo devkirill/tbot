@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
@@ -73,32 +74,73 @@ class RssUpdate {
         val guid = post.guid ?: post.link
         if (sended.none { it.chatId == chatId && it.guid == guid }) {
             try {
-                val imageList = splitImagesForParts(post.images)
                 println(chatId)
-                println(imageList)
 
-                if (imageList.isNotEmpty()) {
-                    for (list in imageList) {
-                        val group = SendMediaGroup()
-                        group.setChatId(chatId)
-                        group.media = list.map { InputMediaPhoto().setMedia(URL(it).openStream(), it) }
-                        bot.execute(group)
+                val groups = mutableListOf<Any>()
+
+                when {
+                    post.images.size == 1 -> {
+                        val url = post.images.first()
+                        val photo = SendPhoto()
+                        photo.setPhoto(url, URL(url).openStream())
+                        groups.add(photo)
+                    }
+                    post.images.isNotEmpty() -> {
+                        val imageList = splitImagesForParts(post.images)
+                        println(imageList)
+
+                        for (list in imageList) {
+                            val group = SendMediaGroup()
+                            group.media = list.map { InputMediaPhoto().setMedia(URL(it).openStream(), it) }
+                            groups.add(group)
+                        }
+
+                        if (post.link.isNotBlank()) {
+                            val s = SendMessage()
+                            groups.add(s)
+                        }
+                    }
+                    else -> {
+                        val s = SendMessage()
+                        groups.add(s)
                     }
                 }
 
-                val s = SendMessage()
-                s.setChatId(chatId)
-                s.text = post.description
-//                        s.enableHtml(true)
+                val last = groups.last()
+
+                when (last) {
+                    is SendMessage -> last.text = post.description
+                    is SendPhoto -> last.caption = post.description
+                    is SendMediaGroup -> last.media.first().caption = post.description
+                }
+
                 if (post.link.isNotBlank()) {
                     val linkButton = InlineKeyboardButton(post.title)
                     linkButton.url = post.link
 
                     val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
 
-                    s.replyMarkup = keyboard
+                    when (last) {
+                        is SendMessage -> last.replyMarkup = keyboard
+                        is SendPhoto -> last.replyMarkup = keyboard
+                    }
                 }
-                bot.execute(s)
+
+                for (msg in groups) {
+                    when (msg) {
+                        is SendMessage -> msg.setChatId(chatId)
+                        is SendPhoto -> msg.setChatId(chatId)
+                        is SendMediaGroup -> msg.setChatId(chatId)
+                    }
+                }
+
+                for (msg in groups) {
+                    when (msg) {
+                        is SendMessage -> bot.execute(msg)
+                        is SendPhoto -> bot.execute(msg)
+                        is SendMediaGroup -> bot.execute(msg)
+                    }
+                }
 
                 storage.save(Sended(chatId = chatId, guid = guid))
             } catch (e: TelegramApiException) {
