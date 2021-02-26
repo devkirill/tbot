@@ -156,6 +156,7 @@ class RssUpdate {
 
     fun getContent(uri: String): InputStream {
         return try {
+            System.setProperty("http.agent", "insomnia/6.6.2")
             val url = URL(uri)
             val urlConnection: URLConnection = url.openConnection()
             BufferedInputStream(urlConnection.getInputStream())
