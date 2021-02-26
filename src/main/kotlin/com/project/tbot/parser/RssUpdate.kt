@@ -119,7 +119,8 @@ class RssUpdate {
                 }
 
                 if (post.link.isNotBlank()) {
-                    val linkButton = InlineKeyboardButton(post.title)
+                    val title = if (post.title.isBlank()) post.link else post.title
+                    val linkButton = InlineKeyboardButton(title)
                     linkButton.url = post.link
 
                     val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))

@@ -45,7 +45,7 @@ class XPathParser {
                         link = node.getValue("link")
                         title = node.getValue("title")
                         description = node.getValue("description")
-                        images = node.getValues("images")
+                        images = node.getValues("img")
                         images += node.findNodes("enclosure")
                             .map { it as? Element }
                             .mapNotNull { it?.getAttribute("url") }
