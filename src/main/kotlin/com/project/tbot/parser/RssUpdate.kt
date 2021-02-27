@@ -83,14 +83,13 @@ class RssUpdate {
                 val groups = mutableListOf<Any>()
 
                 when {
-                    post.images.size == 1 -> {
+                    post.images.isNotEmpty() -> {
                         val url = post.images.first()
                         val photo = SendPhoto()
                         photo.setPhoto(url, URL(url).openStream())
                         groups.add(photo)
-                    }
-                    post.images.isNotEmpty() -> {
-                        val imageList = splitImagesForParts(post.images)
+
+                        val imageList = splitImagesForParts(post.images.drop(1))
                         println(imageList)
 
                         for (list in imageList) {
@@ -99,10 +98,10 @@ class RssUpdate {
                             groups.add(group)
                         }
 
-                        if (post.link.isNotBlank()) {
-                            val s = SendMessage()
-                            groups.add(s)
-                        }
+//                        if (post.link.isNotBlank()) {
+//                            val s = SendMessage()
+//                            groups.add(s)
+//                        }
                     }
                     else -> {
                         val s = SendMessage()
@@ -110,12 +109,12 @@ class RssUpdate {
                     }
                 }
 
-                val last = groups.last()
+                val mainDesc = groups.first()
 
-                when (last) {
-                    is SendMessage -> last.text = post.description
-                    is SendPhoto -> last.caption = post.description
-                    is SendMediaGroup -> last.media.first().caption = post.description
+                when (mainDesc) {
+                    is SendMessage -> mainDesc.text = post.description
+                    is SendPhoto -> mainDesc.caption = post.description
+                    is SendMediaGroup -> mainDesc.media.first().caption = post.description
                 }
 
                 if (post.link.isNotBlank()) {
@@ -125,9 +124,9 @@ class RssUpdate {
 
                     val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
 
-                    when (last) {
-                        is SendMessage -> last.replyMarkup = keyboard
-                        is SendPhoto -> last.replyMarkup = keyboard
+                    when (mainDesc) {
+                        is SendMessage -> mainDesc.replyMarkup = keyboard
+                        is SendPhoto -> mainDesc.replyMarkup = keyboard
                     }
                 }
 
