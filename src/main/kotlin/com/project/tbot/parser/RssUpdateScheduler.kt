@@ -3,9 +3,9 @@ package com.project.tbot.parser
 import com.project.tbot.bot.TBot
 import com.project.tbot.parser.model.Feed
 import com.project.tbot.parser.model.Post
+import com.project.tbot.storage.Storage
 import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
-import com.project.tbot.storage.service.Storage
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -23,7 +23,7 @@ import java.net.URLConnection
 
 
 @Service
-class RssUpdate {
+class RssUpdateScheduler {
     @Autowired
     lateinit var bot: TBot
 
@@ -73,10 +73,10 @@ class RssUpdate {
     fun getFeed(subscribe: Subscribe): Feed = parser.parseRss(getContent(subscribe.rss))
 
     fun send(chatId: Long, post: Post) {
-        val sended = storage.getAll<Sended>()
-
         val guid = post.guid ?: post.link
-        if (sended.none { it.chatId == chatId && it.guid == guid }) {
+        val sended = Sended(chatId = chatId, guid = guid)
+
+        if (storage.alreadySend(sended)) {
             try {
                 println(chatId)
 
@@ -97,11 +97,6 @@ class RssUpdate {
                             group.media = list.map { InputMediaPhoto().setMedia(URL(it).openStream(), it) }
                             groups.add(group)
                         }
-
-//                        if (post.link.isNotBlank()) {
-//                            val s = SendMessage()
-//                            groups.add(s)
-//                        }
                     }
                     else -> {
                         val s = SendMessage()
@@ -146,7 +141,7 @@ class RssUpdate {
                     }
                 }
 
-                storage.save(Sended(chatId = chatId, guid = guid))
+                storage.save(sended)
             } catch (e: TelegramApiException) {
                 e.printStackTrace()
             }
@@ -158,6 +153,9 @@ class RssUpdate {
             System.setProperty("http.agent", "insomnia/6.6.2")
             val url = URL(uri)
             val urlConnection: URLConnection = url.openConnection()
+            urlConnection.setRequestProperty("accept", "*/*")
+            urlConnection.setRequestProperty("user-agent", "insomnia/2020.5.2")
+//            urlConnection.setRequestProperty("Host", "mangalib.me")
             BufferedInputStream(urlConnection.getInputStream())
         } catch (e: Exception) {
             throw IllegalStateException(e)

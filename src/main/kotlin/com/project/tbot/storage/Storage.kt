@@ -1,4 +1,4 @@
-package com.project.tbot.storage.service
+package com.project.tbot.storage
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -13,7 +13,10 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
 @Service
-class Storage(@Value("\${storage.address:}") val address: String) {
+class Storage {
+    @Value("\${storage.address:}")
+    lateinit var address: String
+
     fun <T : Any> save(obj: T) {
         val name = obj::class.simpleName!!.toLowerCase()
         val content = Gson().toJson(obj)
@@ -33,10 +36,6 @@ class Storage(@Value("\${storage.address:}") val address: String) {
         }
     }
 
-//    fun <T> contains(clazz: Class<T>): List<T> {
-//
-//    }
-
     fun <T> getAll(clazz: Class<T>): List<T> {
         val className = clazz.simpleName.toLowerCase()
         val result = mutableListOf<T>()
@@ -55,6 +54,10 @@ class Storage(@Value("\${storage.address:}") val address: String) {
             client.close()
         }
         return result
+    }
+
+    fun alreadySend(sended: Sended): Boolean {
+        return getAll<Sended>().any { it == sended }
     }
 
     final inline fun <reified T> getAll() = getAll(T::class.java)
