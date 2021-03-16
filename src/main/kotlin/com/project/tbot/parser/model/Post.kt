@@ -25,7 +25,7 @@ data class Post(
         var category: List<String> = listOf()
     ) {
         fun build(): Post {
-            if (description.contains(Regex("</?\\w+>"))) {
+            if (description.contains(Regex("</?\\w+(\\s*/)?>"))) {
                 val body = Jsoup.parse(description).body()
                 fun recursive(root: Element): String {
                     var begin = ""
@@ -39,10 +39,15 @@ data class Post(
                         "br" -> begin += "\n\n"
                         "a" -> {
                             val url = root.attr("href")
-                            if (link.isBlank())
-                                link = url
-                            begin += "[$link]("
-                            end += ")"
+                            when {
+                                link == url -> {
+                                }
+                                link.isBlank() -> link = url
+                                root.text().isNotBlank() -> {
+                                    begin += "["
+                                    end += "]($link)"
+                                }
+                            }
                         }
                         "b", "strong" -> {
                             begin += "**"
@@ -70,7 +75,8 @@ data class Post(
                     }
                     return begin + end
                 }
-                description = recursive(body)
+                description =
+                    recursive(body).replace(Regex("\n\\s+\n"), "\n").replace(Regex("\n+"), "\n").trim(' ', '\n')
             }
 
             return Post(
@@ -82,10 +88,5 @@ data class Post(
                 category = category
             )
         }
-
-//        fun fromHtml(content: String): String {
-//            Jsoup.parse(content)
-//            return "";
-//        }
     }
 }

@@ -44,7 +44,7 @@ class Storage {
 
             val response: String = client.get("$address/$className/type/_search") {
                 contentType(ContentType.Application.Json)
-                body = "{\"size\": 1000}"
+                body = "{\"size\": 10000}"
             }
             val list = JsonParser().parse(response).asJsonObject.getAsJsonObject("hits").getAsJsonArray("hits")
             for (t in list) {
