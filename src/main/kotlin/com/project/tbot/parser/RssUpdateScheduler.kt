@@ -76,7 +76,7 @@ class RssUpdateScheduler {
         val guid = post.guid ?: post.link
         val sended = Sended(chatId = chatId, guid = guid)
 
-        if (storage.alreadySend(sended)) {
+        if (!storage.alreadySend(sended)) {
             try {
                 println(chatId)
 
@@ -113,11 +113,10 @@ class RssUpdateScheduler {
                     }
                     is SendPhoto -> {
                         mainDesc.caption = post.description
-//                        mainDesc.enableMarkdownV2(true)
+                        mainDesc.parseMode = "MarkdownV2"
                     }
                     is SendMediaGroup -> {
                         mainDesc.media.first().caption = post.description
-//                        mainDesc.enableMarkdownV2(true)
                     }
                 }
 

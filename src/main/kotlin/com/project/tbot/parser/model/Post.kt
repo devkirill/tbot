@@ -25,6 +25,10 @@ data class Post(
         var category: List<String> = listOf()
     ) {
         fun build(): Post {
+            fun escape(s: String): String {
+                return s.replace(Regex("_|\\*|\\[|]|\\(|\\)|~|`|>|#|\\+|-|=|\\||\\{|}|\\.|!")) { "\\" + it.value } // "\\$0")
+            }
+
             if (description.contains(Regex("</?\\w+(\\s*/)?>"))) {
                 val body = Jsoup.parse(description).body()
                 fun recursive(root: Element): String {
@@ -45,7 +49,7 @@ data class Post(
                                 link.isBlank() -> link = url
                                 root.text().isNotBlank() -> {
                                     begin += "["
-                                    end += "]($link)"
+                                    end += "](${link.replace(Regex("\\|\\?"), "\\$0")})"
                                 }
                             }
                         }
@@ -68,7 +72,7 @@ data class Post(
                     }
                     for (child in root.childNodes()) {
                         begin += when (child) {
-                            is TextNode -> child.text().replace("\n", " ").trim()
+                            is TextNode -> escape(child.text().replace("\n", " ").trim())
                             is Element -> recursive(child)
                             else -> ""
                         }
@@ -76,7 +80,9 @@ data class Post(
                     return begin + end
                 }
                 description =
-                    recursive(body).replace(Regex("\n\\s+\n"), "\n").replace(Regex("\n+"), "\n").trim(' ', '\n')
+                    recursive(body).replace(Regex("^\\s+$"), "").replace(Regex("\n\n+"), "\n\n").trim(' ', '\n')
+            } else {
+                description = escape(description)
             }
 
             return Post(
