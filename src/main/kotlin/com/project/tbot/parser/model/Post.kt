@@ -72,7 +72,7 @@ data class Post(
                     }
                     for (child in root.childNodes()) {
                         begin += when (child) {
-                            is TextNode -> escape(child.text().replace("\n", " ").trim())
+                            is TextNode -> escape(child.text().replace(Regex("\n| +"), " "))
                             is Element -> recursive(child)
                             else -> ""
                         }
@@ -80,7 +80,7 @@ data class Post(
                     return begin + end
                 }
                 description =
-                    recursive(body).replace(Regex("^\\s+$"), "").replace(Regex("\n\n+"), "\n\n").trim(' ', '\n')
+                    recursive(body).replace(Regex("\n\\s+\n"), "\n\n").replace(Regex("\n\n+"), "\n\n").trim(' ', '\n')
             } else {
                 description = escape(description)
             }
