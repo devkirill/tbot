@@ -1,5 +1,9 @@
 package com.project.tbot.parser.model
 
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import org.jsoup.nodes.TextNode
+
 data class Post(
     val guid: String?,
     val link: String,
@@ -20,13 +24,68 @@ data class Post(
         var images: List<String> = listOf(),
         var category: List<String> = listOf()
     ) {
-        fun build(): Post = Post(
-            guid = guid,
-            link = link,
-            title = title,
-            description = description,
-            images = images,
-            category = category
-        )
+        fun build(): Post {
+            if (description.contains(Regex("</?\\w+>"))) {
+                val body = Jsoup.parse(description).body()
+                fun recursive(root: Element): String {
+                    var begin = ""
+                    var end = ""
+                    when (root.tag().name.toLowerCase()) {
+                        "img" -> images += root.attr("src")
+                        "p" -> {
+                            begin += "\n\n"
+                            end += "\n\n"
+                        }
+                        "br" -> begin += "\n\n"
+                        "a" -> {
+                            val url = root.attr("href")
+                            if (link.isBlank())
+                                link = url
+                            begin += "[$link]("
+                            end += ")"
+                        }
+                        "b", "strong" -> {
+                            begin += "**"
+                            end += "**"
+                        }
+                        "i", "em" -> {
+                            begin += "_"
+                            end += "_"
+                        }
+                        "u", "ins" -> {
+                            begin += "__"
+                            end += "__"
+                        }
+                        "s", "strike", "del" -> {
+                            begin += "~"
+                            end += "~"
+                        }
+                    }
+                    for (child in root.childNodes()) {
+                        begin += when (child) {
+                            is TextNode -> child.text().replace("\n", " ").trim()
+                            is Element -> recursive(child)
+                            else -> ""
+                        }
+                    }
+                    return begin + end
+                }
+                description = recursive(body)
+            }
+
+            return Post(
+                guid = guid,
+                link = link,
+                title = title,
+                description = description,
+                images = images,
+                category = category
+            )
+        }
+
+//        fun fromHtml(content: String): String {
+//            Jsoup.parse(content)
+//            return "";
+//        }
     }
 }

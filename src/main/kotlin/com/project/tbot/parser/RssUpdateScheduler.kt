@@ -107,9 +107,18 @@ class RssUpdateScheduler {
                 val mainDesc = groups.first()
 
                 when (mainDesc) {
-                    is SendMessage -> mainDesc.text = post.description
-                    is SendPhoto -> mainDesc.caption = post.description
-                    is SendMediaGroup -> mainDesc.media.first().caption = post.description
+                    is SendMessage -> {
+                        mainDesc.text = post.description
+                        mainDesc.enableMarkdownV2(true)
+                    }
+                    is SendPhoto -> {
+                        mainDesc.caption = post.description
+//                        mainDesc.enableMarkdownV2(true)
+                    }
+                    is SendMediaGroup -> {
+                        mainDesc.media.first().caption = post.description
+//                        mainDesc.enableMarkdownV2(true)
+                    }
                 }
 
                 if (post.link.isNotBlank()) {
