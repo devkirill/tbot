@@ -53,7 +53,7 @@ class RssUpdateScheduler {
 
     @Scheduled(initialDelay = 2000, fixedDelay = 10 * 60 * 1000)
     fun update() {
-        val list = storage.getAll<Subscribe>()
+        val list = storage.getAllSubscribed()
 
         list.map { subscribe ->
             try {
@@ -144,6 +144,7 @@ class RssUpdateScheduler {
                 for (msg in groups) {
                     when (msg) {
                         is SendMessage -> bot.execute(msg)
+                        // TODO - split msg if >1024
                         is SendPhoto -> bot.execute(msg)
                         is SendMediaGroup -> bot.execute(msg)
                     }

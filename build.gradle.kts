@@ -23,13 +23,12 @@ repositories {
 }
 
 dependencies {
-//    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     compileOnly("org.projectlombok:lombok")
-//    runtimeOnly("org.postgresql:postgresql")
+
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
@@ -40,6 +39,10 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:1.3.1")
     implementation("org.telegram:telegrambots:4.9.1")
     implementation("org.telegram:telegrambotsextensions:4.9.1")
+
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.xerial:sqlite-jdbc:3.25.2")
+    implementation("com.zsoltfabok:sqlite-dialect:1.0")
 }
 
 tasks.withType<Test> {

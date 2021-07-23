@@ -40,7 +40,7 @@ class TBot : TelegramLongPollingBot() {
             txt.startsWith("/add ") -> {
                 val url = txt.substringAfter(" ")
                 val chatId = msg.chatId
-                val subscribe = Subscribe(chatId, url)
+                val subscribe = Subscribe(chatId = chatId, rss = url)
 
                 storage.save(subscribe)
                 val feed = rssUpdate.getFeed(subscribe)

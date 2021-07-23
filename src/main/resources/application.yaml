@@ -1,0 +1,15 @@
+telegram:
+  mode: polling
+  unresolved-filter:
+    enabled: false
+
+spring:
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:storage.db
+    username:
+    password:
+  jpa:
+    database-platform: com.project.tbot.utils.FixedSQLiteDialect
+    hibernate:
+      ddl-auto: update
