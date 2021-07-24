@@ -7,6 +7,7 @@ import com.project.tbot.storage.Storage
 import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
@@ -32,6 +33,14 @@ class RssUpdateScheduler {
 
     @Autowired
     lateinit var parser: XPathParser
+
+    @Value("#{'\${parsers}'.split(',')}")
+    lateinit var listOfParsers: List<String>
+
+    val parsers: Map<String, String>
+        get() = listOfParsers.associate {
+            it.substringBefore("=").toLowerCase() to it.substringAfter("=")
+        }
 
     fun splitImagesForParts(urls: List<String>): List<List<String>> {
         val count = urls.size
@@ -70,7 +79,13 @@ class RssUpdateScheduler {
         }
     }
 
-    fun getFeed(subscribe: Subscribe): Feed = parser.parseRss(getContent(subscribe.rss))
+    fun getFeed(subscribe: Subscribe): Feed {
+        val url = getContentUrl(subscribe)
+        val stream = getContent(url)
+        return parser.parseRss(stream)
+    }
+
+    fun getContentUrl(subscribe: Subscribe) = (parsers[subscribe.type] ?: "%s").format(subscribe.rss)
 
     fun send(chatId: Long, post: Post) {
         val guid = post.guid ?: post.link

@@ -37,10 +37,16 @@ class TBot : TelegramLongPollingBot() {
             txt.trim() == "/start" -> {
                 msg.sendMsg("Hello, world! This is simple bot!")
             }
-            txt.startsWith("/add ") -> {
+            txt.startsWith("/add") -> {
+                val command = txt.substringBefore(" ")
+                val type = if ("_" in command) command.substringAfter("_") else ""
+                if (type != "" && type !in rssUpdate.parsers) {
+                    msg.sendMsg("Неизвестный тип $type")
+                    return
+                }
                 val url = txt.substringAfter(" ")
                 val chatId = msg.chatId
-                val subscribe = Subscribe(chatId = chatId, rss = url)
+                val subscribe = Subscribe(chatId = chatId, type = type, rss = url)
 
                 storage.save(subscribe)
                 val feed = rssUpdate.getFeed(subscribe)

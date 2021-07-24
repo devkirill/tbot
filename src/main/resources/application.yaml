@@ -13,3 +13,5 @@ spring:
     database-platform: com.project.tbot.utils.FixedSQLiteDialect
     hibernate:
       ddl-auto: update
+
+parsers: html=http://localhost:8888/rss?url=%s

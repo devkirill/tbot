@@ -37,6 +37,7 @@ class XPathParser {
             title = document.getValue("//channel/title")
             description = document.getValue("//channel/description")
             link = document.getValue("//channel/link")
+            image = document.getValue("//channel/image/url")
 
             this.posts = document.getNodes("//channel/item")
                 .map { node ->
