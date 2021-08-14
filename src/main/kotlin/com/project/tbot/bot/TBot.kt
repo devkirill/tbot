@@ -52,13 +52,13 @@ class TBot : TelegramLongPollingBot() {
                 val feed = rssUpdate.getFeed(subscribe)
 
                 try {
-                    for (post in feed.posts.subList(0, 3).reversed()) {
+                    for (post in feed.posts.subList(0, 1).reversed()) {
                         rssUpdate.send(chatId, post)
                     }
                 } catch (e: Throwable) {
                     e.printStackTrace()
                 }
-                val othersPosts = feed.posts.subList(3, feed.posts.size)
+                val othersPosts = feed.posts.subList(1, feed.posts.size)
                 othersPosts.forEach { post ->
                     val guid = post.guid ?: post.link
                     storage.save(Sended(chatId = chatId, guid = guid))
