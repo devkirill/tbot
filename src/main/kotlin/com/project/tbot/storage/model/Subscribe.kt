@@ -19,4 +19,6 @@ data class Subscribe(
     @Column
     @NotEmpty
     var rss: String
+//    @Column
+//    var weight: Long
 )

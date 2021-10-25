@@ -10,7 +10,8 @@ data class Post(
     val title: String,
     val description: String,
     val images: List<String>,
-    val category: List<String>
+    val category: List<String>,
+    val files: List<String>
 ) {
     companion object {
         inline operator fun invoke(block: Builder.() -> Unit) = Builder().apply(block).build()
@@ -22,7 +23,8 @@ data class Post(
         var title: String = "",
         var description: String = "",
         var images: List<String> = listOf(),
-        var category: List<String> = listOf()
+        var category: List<String> = listOf(),
+        var files: List<String> = listOf()
     ) {
         fun build(): Post {
             fun escape(s: String): String {
@@ -91,7 +93,8 @@ data class Post(
                 title = title,
                 description = description,
                 images = images,
-                category = category
+                category = category,
+                files = files
             )
         }
     }

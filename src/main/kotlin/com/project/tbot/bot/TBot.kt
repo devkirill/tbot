@@ -53,7 +53,7 @@ class TBot : TelegramLongPollingBot() {
 
                 try {
                     for (post in feed.posts.subList(0, 1).reversed()) {
-                        rssUpdate.send(chatId, post)
+                        rssUpdate.send(chatId, feed, post)
                     }
                 } catch (e: Throwable) {
                     e.printStackTrace()

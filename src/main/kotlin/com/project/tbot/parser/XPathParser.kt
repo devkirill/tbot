@@ -51,6 +51,7 @@ class XPathParser {
                             .map { it as? Element }
                             .mapNotNull { it?.getAttribute("url") }
                         category = node.getValues("category")
+                        files = node.getValues("file")
                     }
                 }
         }

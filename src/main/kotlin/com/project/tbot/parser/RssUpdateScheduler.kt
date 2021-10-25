@@ -10,9 +10,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
+import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
@@ -71,7 +73,7 @@ class RssUpdateScheduler {
                 for (post in feed.posts.reversed()) {
                     val chatId = subscribe.chatId
 
-                    send(chatId, post)
+                    send(chatId, feed, post)
                 }
             } catch (e: Throwable) {
                 e.printStackTrace()
@@ -87,7 +89,7 @@ class RssUpdateScheduler {
 
     fun getContentUrl(subscribe: Subscribe) = (parsers[subscribe.type] ?: "%s").format(subscribe.rss)
 
-    fun send(chatId: Long, post: Post) {
+    fun send(chatId: Long, feed: Feed, post: Post) {
         val guid = post.guid ?: post.link
         val sended = Sended(chatId = chatId, guid = guid)
 
@@ -97,14 +99,19 @@ class RssUpdateScheduler {
 
                 val groups = mutableListOf<Any>()
 
+                val images = post.images.toMutableList()
+                if (images.isEmpty() && feed.image.isNotBlank()) {
+                    images += feed.image
+                }
+
                 when {
-                    post.images.isNotEmpty() -> {
-                        val url = post.images.first()
+                    images.isNotEmpty() -> {
+                        val url = images.first()
                         val photo = SendPhoto()
                         photo.setPhoto(url, URL(url).openStream())
                         groups.add(photo)
 
-                        val imageList = splitImagesForParts(post.images.drop(1))
+                        val imageList = splitImagesForParts(images.drop(1))
                         println(imageList)
 
                         for (list in imageList) {
@@ -118,6 +125,16 @@ class RssUpdateScheduler {
                         groups.add(s)
                     }
                 }
+
+                val files = post.files
+
+                files.forEach {
+                    val file = SendDocument()
+                    val pair = getContentFile(it)
+                    file.document = InputFile(pair.second, pair.first)
+                    groups.add(file)
+                }
+
 
                 val mainDesc = groups.first()
 
@@ -153,6 +170,7 @@ class RssUpdateScheduler {
                         is SendMessage -> msg.setChatId(chatId)
                         is SendPhoto -> msg.setChatId(chatId)
                         is SendMediaGroup -> msg.setChatId(chatId)
+                        is SendDocument -> msg.setChatId(chatId)
                     }
                 }
 
@@ -162,6 +180,7 @@ class RssUpdateScheduler {
                         // TODO - split msg if >1024
                         is SendPhoto -> bot.execute(msg)
                         is SendMediaGroup -> bot.execute(msg)
+                        is SendDocument -> bot.execute(msg)
                     }
                 }
 
@@ -181,6 +200,29 @@ class RssUpdateScheduler {
             urlConnection.setRequestProperty("user-agent", "insomnia/2020.5.2")
 //            urlConnection.setRequestProperty("Host", "mangalib.me")
             BufferedInputStream(urlConnection.getInputStream())
+        } catch (e: Exception) {
+            throw IllegalStateException(e)
+        }
+    }
+
+    fun getContentFile(uri: String): Pair<String, InputStream> {
+        return try {
+            System.setProperty("http.agent", "insomnia/6.6.2")
+
+            val url = URL(uri)
+            val urlConnection = url.openConnection()
+
+            urlConnection.setRequestProperty("accept", "*/*")
+            urlConnection.setRequestProperty("user-agent", "insomnia/2020.5.2")
+
+            val fieldValue = urlConnection.getHeaderField("Content-Disposition")
+            if (fieldValue == null || !fieldValue.contains("filename=\"")) {
+                // no file name there -> throw exception ...
+            }
+            val filename = fieldValue!!.substring(fieldValue.indexOf("filename=\"") + 10, fieldValue.length - 1)
+//            val download = File(System.getProperty("java.io.tmpdir"), filename)
+
+            Pair(filename, BufferedInputStream(urlConnection.getInputStream()))
         } catch (e: Exception) {
             throw IllegalStateException(e)
         }
