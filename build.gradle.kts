@@ -41,7 +41,8 @@ dependencies {
     implementation("org.telegram:telegrambotsextensions:4.9.1")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.xerial:sqlite-jdbc:3.25.2")
+//    implementation("org.xerial:sqlite-jdbc:3.25.2")
+    runtimeOnly("org.postgresql:postgresql")
     implementation("com.zsoltfabok:sqlite-dialect:1.0")
 }
 

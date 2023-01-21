@@ -5,12 +5,13 @@ telegram:
 
 spring:
   datasource:
-    driver-class-name: org.sqlite.JDBC
-    url: jdbc:sqlite:storage.db
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/tbot
     username:
     password:
   jpa:
-    database-platform: com.project.tbot.utils.FixedSQLiteDialect
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
     hibernate:
       ddl-auto: update
 

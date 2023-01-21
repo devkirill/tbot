@@ -193,7 +193,7 @@ class RssUpdateScheduler {
 
     fun getContent(uri: String): InputStream {
         return try {
-            System.setProperty("http.agent", "insomnia/6.6.2")
+             System.setProperty("http.agent", "insomnia/6.6.2")
             val url = URL(uri)
             val urlConnection: URLConnection = url.openConnection()
             urlConnection.setRequestProperty("accept", "*/*")
@@ -201,7 +201,7 @@ class RssUpdateScheduler {
 //            urlConnection.setRequestProperty("Host", "mangalib.me")
             BufferedInputStream(urlConnection.getInputStream())
         } catch (e: Exception) {
-            throw IllegalStateException(e)
+            throw IllegalStateException("error with get from $uri",e)
         }
     }
 
