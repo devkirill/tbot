@@ -2,4 +2,4 @@
 
 build command
 
-`docker build -t tbot:1.0 -t tbot:latest github.com/devkirill/tbot`
+`docker build -t dev643/tbot:1.0 -t dev643/tbot:latest .`
