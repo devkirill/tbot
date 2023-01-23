@@ -1,4 +1,4 @@
-package com.project.tbot
+package com.project
 
 import org.springframework.boot.runApplication
 

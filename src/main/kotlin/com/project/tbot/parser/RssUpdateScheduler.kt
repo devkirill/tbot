@@ -1,13 +1,14 @@
 package com.project.tbot.parser
 
+import com.project.rss.service.TemplateStorage
 import com.project.tbot.bot.TBot
 import com.project.tbot.parser.model.Feed
 import com.project.tbot.parser.model.Post
 import com.project.tbot.storage.Storage
 import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
+import com.project.tbot.utils.toFeed
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument
@@ -36,13 +37,15 @@ class RssUpdateScheduler {
     @Autowired
     lateinit var parser: XPathParser
 
-    @Value("#{'\${parsers}'.split(',')}")
-    lateinit var listOfParsers: List<String>
+    @Autowired
+    lateinit var templateStorage: TemplateStorage
 
-    val parsers: Map<String, String>
-        get() = listOfParsers.associate {
-            it.substringBefore("=").toLowerCase() to it.substringAfter("=")
-        }
+    val parsers by lazy {
+        mapOf(
+            "html" to { url: String -> templateStorage.findParser(url).getFeed(url).toFeed() },
+            "" to { url: String -> parser.parseRss(getContent(url)) }
+        )
+    }
 
     fun splitImagesForParts(urls: List<String>): List<List<String>> {
         val count = urls.size
@@ -82,12 +85,8 @@ class RssUpdateScheduler {
     }
 
     fun getFeed(subscribe: Subscribe): Feed {
-        val url = getContentUrl(subscribe)
-        val stream = getContent(url)
-        return parser.parseRss(stream)
+        return parsers[subscribe.type]?.let { it(subscribe.rss) } ?: TODO()
     }
-
-    fun getContentUrl(subscribe: Subscribe) = (parsers[subscribe.type] ?: "%s").format(subscribe.rss)
 
     fun send(chatId: Long, feed: Feed, post: Post) {
         val guid = post.guid ?: post.link
@@ -120,6 +119,7 @@ class RssUpdateScheduler {
                             groups.add(group)
                         }
                     }
+
                     else -> {
                         val s = SendMessage()
                         groups.add(s)
@@ -143,10 +143,12 @@ class RssUpdateScheduler {
                         mainDesc.text = post.description
                         mainDesc.enableMarkdownV2(true)
                     }
+
                     is SendPhoto -> {
                         mainDesc.caption = post.description
                         mainDesc.parseMode = "MarkdownV2"
                     }
+
                     is SendMediaGroup -> {
                         mainDesc.media.first().caption = post.description
                     }
@@ -193,7 +195,7 @@ class RssUpdateScheduler {
 
     fun getContent(uri: String): InputStream {
         return try {
-             System.setProperty("http.agent", "insomnia/6.6.2")
+            System.setProperty("http.agent", "insomnia/6.6.2")
             val url = URL(uri)
             val urlConnection: URLConnection = url.openConnection()
             urlConnection.setRequestProperty("accept", "*/*")
@@ -201,7 +203,7 @@ class RssUpdateScheduler {
 //            urlConnection.setRequestProperty("Host", "mangalib.me")
             BufferedInputStream(urlConnection.getInputStream())
         } catch (e: Exception) {
-            throw IllegalStateException("error with get from $uri",e)
+            throw IllegalStateException("error with get from $uri", e)
         }
     }
 

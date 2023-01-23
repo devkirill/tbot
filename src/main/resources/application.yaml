@@ -14,5 +14,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQL10Dialect
     hibernate:
       ddl-auto: update
+  main:
+    allow-circular-references: true
 
 parsers: html=http://localhost:8888/rss?url=%s
