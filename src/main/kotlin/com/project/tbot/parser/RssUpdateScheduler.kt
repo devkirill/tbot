@@ -169,7 +169,27 @@ class RssUpdateScheduler {
 
                 groups.forEach { msg ->
                     if (msg is SendPhoto && msg.caption.length > 1000) {
-                        msg.caption = msg.caption.substring(0, 1000) + "\\.\\.\\."
+                        var caption = msg.caption.reversed()
+                        while (caption.length > 1000) {
+                            val brackets = mutableListOf<Char>()
+                            var index = 0
+                            while (index == 0 || caption[index] !in " \n" || brackets.isNotEmpty()) {
+                                if (caption[index] in "{}[]()") {
+                                    val c = caption[index]
+                                    val pair = listOf("{}", "[]", "()")
+                                        .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
+                                        .toMap()
+                                    if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
+                                        brackets.removeLast()
+                                    } else {
+                                        brackets += caption[index]
+                                    }
+                                }
+                                index += 1
+                            }
+                            caption = caption.substring(index)
+                        }
+                        msg.caption = caption.reversed()
                     }
                 }
 

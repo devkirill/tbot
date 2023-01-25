@@ -64,6 +64,16 @@ class TBot : TelegramLongPollingBot() {
                     storage.save(Sended(chatId = chatId, guid = guid))
                 }
             }
+
+            txt.startsWith("/list") -> {
+                val subs = storage.getAllSubscribed().filter { it.chatId == msg.chatId }
+                if (subs.isEmpty()) {
+                    msg.sendMsg("No subscribes")
+                } else {
+                    val list = subs.sortedBy { it.id }.map { "${it.id} ${it.rss}" }.joinToString("\n")
+                    msg.sendMsg(list)
+                }
+            }
         }
     }
 
