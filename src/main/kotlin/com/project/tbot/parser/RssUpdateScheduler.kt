@@ -167,6 +167,12 @@ class RssUpdateScheduler {
                     }
                 }
 
+                groups.forEach { msg ->
+                    if (msg is SendPhoto && msg.caption.length > 1000) {
+                        msg.caption = msg.caption.substring(0, 1000) + "\\.\\.\\."
+                    }
+                }
+
                 for (msg in groups) {
                     when (msg) {
                         is SendMessage -> msg.setChatId(chatId)
@@ -177,12 +183,17 @@ class RssUpdateScheduler {
                 }
 
                 for (msg in groups) {
-                    when (msg) {
-                        is SendMessage -> bot.execute(msg)
-                        // TODO - split msg if >1024
-                        is SendPhoto -> bot.execute(msg)
-                        is SendMediaGroup -> bot.execute(msg)
-                        is SendDocument -> bot.execute(msg)
+                    try {
+                        when (msg) {
+                            is SendMessage -> bot.execute(msg)
+                            // TODO - split msg if >1024
+                            is SendPhoto -> bot.execute(msg)
+                            is SendMediaGroup -> bot.execute(msg)
+                            is SendDocument -> bot.execute(msg)
+                        }
+                    } catch (e: TelegramApiException) {
+                        System.err.println(msg.toString())
+                        throw e
                     }
                 }
 
