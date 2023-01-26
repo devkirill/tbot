@@ -104,9 +104,13 @@ class RssUpdateScheduler {
                     if (post.link matches Regex("https?:\\/\\/habr\\.com\\/.*")) {
                         val document = Jsoup.parse(URL(post.link), 5000)
 
-                        val res = document.select("img[data-src]")
+                        val res = document.select("div.tm-article-body img")
                         if (res.isNotEmpty()) {
-                            images += res[0].attr("data-src")
+                            images += if (res[0].hasAttr("data-src")) {
+                                res[0].attr("data-src")
+                            } else {
+                                res[0].attr("src")
+                            }
                         }
                     }
                     if (images.isEmpty()) {
