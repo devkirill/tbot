@@ -74,6 +74,17 @@ class TBot : TelegramLongPollingBot() {
                     msg.sendMsg(list)
                 }
             }
+
+            txt.startsWith("/remove") -> {
+                val id = txt.substringAfter(" ", "")
+                val toRemove = storage.getAllSubscribed()
+                    .filter { it.chatId == msg.chatId }
+                    .filter { it.id.toString() == id }
+                toRemove.forEach {
+                    storage.remove(it)
+                }
+                msg.sendMsg("removed ${toRemove.size} subscribe")
+            }
         }
     }
 

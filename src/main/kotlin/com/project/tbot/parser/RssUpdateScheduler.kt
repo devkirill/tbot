@@ -8,6 +8,7 @@ import com.project.tbot.storage.Storage
 import com.project.tbot.storage.model.Sended
 import com.project.tbot.storage.model.Subscribe
 import com.project.tbot.utils.toFeed
+import org.jsoup.Jsoup
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -100,7 +101,17 @@ class RssUpdateScheduler {
 
                 val images = post.images.toMutableList()
                 if (images.isEmpty() && feed.image.isNotBlank()) {
-                    images += feed.image
+                    if (post.link matches Regex("https?:\\/\\/habr\\.com\\/.*")) {
+                        val document = Jsoup.parse(URL(post.link), 5000)
+
+                        val res = document.select("img[data-src]")
+                        if (res.isNotEmpty()) {
+                            images += res[0].attr("data-src")
+                        }
+                    }
+                    if (images.isEmpty()) {
+                        images += feed.image
+                    }
                 }
 
                 when {

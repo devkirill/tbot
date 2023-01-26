@@ -36,4 +36,20 @@ class Storage {
     fun getAllSubscribed(): List<Subscribe> {
         return subscribeRepository.findAll()
     }
+
+    fun <T : Any> remove(obj: T) {
+        when (obj) {
+            is Sended -> {
+                sendedRepository.deleteById(obj.id ?: return)
+            }
+
+            is Subscribe -> {
+                subscribeRepository.deleteById(obj.id ?: return)
+            }
+
+            else -> {
+                TODO("not supported")
+            }
+        }
+    }
 }
