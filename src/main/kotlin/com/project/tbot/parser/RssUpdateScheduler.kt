@@ -90,42 +90,60 @@ class RssUpdateScheduler {
     }
 
     fun send(chatId: Long, feed: Feed, post: Post) {
-        val guid = post.guid ?: post.link
-        val sended = Sended(chatId = chatId, guid = guid)
+        val sended = Sended(chatId = chatId, guid = post.guid ?: post.link)
+        if (storage.alreadySend(sended)) {
+            return;
+        }
 
-        if (!storage.alreadySend(sended)) {
-            try {
-                println(chatId)
+        try {
+            println(chatId)
 
-                val groups = mutableListOf<Any>()
-
-                val images = post.images.toMutableList()
-                if (images.isEmpty() && feed.image.isNotBlank()) {
-                    if (post.link matches Regex("https?:\\/\\/habr\\.com\\/.*")) {
+            post.let { post ->
+                when {
+                    post.images.isEmpty() && feed.image.isNotBlank() && post.isHabr() -> {
                         val document = Jsoup.parse(URL(post.link), 5000)
 
                         val res = document.select("div.tm-article-body img")
                         if (res.isNotEmpty()) {
-                            images += if (res[0].hasAttr("data-src")) {
-                                res[0].attr("data-src")
+                            if (res[0].hasAttr("data-src")) {
+                                post.copy(images = listOf(res[0].attr("data-src")))
                             } else {
-                                res[0].attr("src")
+                                post.copy(images = listOf(res[0].attr("src")))
                             }
+                        } else {
+                            post
                         }
                     }
-                    if (images.isEmpty()) {
-                        images += feed.image
-                    }
-                }
 
+                    post.images.isEmpty() && feed.image.isNotBlank() -> {
+                        post.copy(images = listOf(feed.image))
+                    }
+
+                    else -> post
+                }
+            }.let { post ->
                 when {
-                    images.isNotEmpty() -> {
-                        val url = images.first()
+                    post.isHabr() -> {
+                        post.copy(
+                            description = post.description.replace(
+                                Regex("\\s+\\[[^\\[\\]]*Читать далее[^\\[\\]]*\\]\\([^)]*\\)"),
+                                ""
+                            )
+                        )
+                    }
+
+                    else -> post
+                }
+            }.let { post ->
+                when {
+                    post.images.isNotEmpty() -> {
+                        val groups = mutableListOf<Any>()
+                        val url = post.images.first()
                         val photo = SendPhoto()
                         photo.setPhoto(url, URL(url).openStream())
                         groups.add(photo)
 
-                        val imageList = splitImagesForParts(images.drop(1))
+                        val imageList = splitImagesForParts(post.images.drop(1))
                         println(imageList)
 
                         for (list in imageList) {
@@ -133,55 +151,55 @@ class RssUpdateScheduler {
                             group.media = list.map { InputMediaPhoto().setMedia(URL(it).openStream(), it) }
                             groups.add(group)
                         }
+
+                        groups
                     }
 
                     else -> {
-                        val s = SendMessage()
-                        groups.add(s)
+                        listOf(SendMessage())
                     }
                 }
-
-                val files = post.files
-
-                files.forEach {
+            }.let { groups ->
+                groups + post.files.map {
                     val file = SendDocument()
                     val pair = getContentFile(it)
                     file.document = InputFile(pair.second, pair.first)
-                    groups.add(file)
+                    file
                 }
-
-
-                val mainDesc = groups.first()
-
-                when (mainDesc) {
-                    is SendMessage -> {
-                        mainDesc.text = post.description
-                        mainDesc.enableMarkdownV2(true)
-                    }
-
-                    is SendPhoto -> {
-                        mainDesc.caption = post.description
-                        mainDesc.parseMode = "MarkdownV2"
-                    }
-
-                    is SendMediaGroup -> {
-                        mainDesc.media.first().caption = post.description
-                    }
-                }
-
-                if (post.link.isNotBlank()) {
-                    val title = if (post.title.isBlank()) post.link else post.title
-                    val linkButton = InlineKeyboardButton(title)
-                    linkButton.url = post.link
-
-                    val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
-
+            }.let { groups ->
+                groups.first().let { mainDesc ->
                     when (mainDesc) {
-                        is SendMessage -> mainDesc.replyMarkup = keyboard
-                        is SendPhoto -> mainDesc.replyMarkup = keyboard
+                        is SendMessage -> {
+                            mainDesc.text = post.description
+                            mainDesc.enableMarkdownV2(true)
+                        }
+
+                        is SendPhoto -> {
+                            mainDesc.caption = post.description
+                            mainDesc.parseMode = "MarkdownV2"
+                        }
+
+                        is SendMediaGroup -> {
+                            mainDesc.media.first().caption = post.description
+                        }
+                    }
+
+                    if (post.link.isNotBlank()) {
+                        val title = if (post.title.isBlank()) post.link else post.title
+                        val linkButton = InlineKeyboardButton(title)
+                        linkButton.url = post.link
+
+                        val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
+
+                        when (mainDesc) {
+                            is SendMessage -> mainDesc.replyMarkup = keyboard
+                            is SendPhoto -> mainDesc.replyMarkup = keyboard
+                        }
                     }
                 }
 
+                groups
+            }.let { groups ->
                 groups.forEach { msg ->
                     if (msg is SendPhoto && msg.caption.length > 1000) {
                         var caption = msg.caption.reversed()
@@ -207,7 +225,8 @@ class RssUpdateScheduler {
                         msg.caption = caption.reversed()
                     }
                 }
-
+                groups
+            }.let { groups ->
                 for (msg in groups) {
                     when (msg) {
                         is SendMessage -> msg.setChatId(chatId)
@@ -216,7 +235,8 @@ class RssUpdateScheduler {
                         is SendDocument -> msg.setChatId(chatId)
                     }
                 }
-
+                groups
+            }.let { groups ->
                 for (msg in groups) {
                     try {
                         when (msg) {
@@ -228,14 +248,15 @@ class RssUpdateScheduler {
                         }
                     } catch (e: TelegramApiException) {
                         System.err.println(msg.toString())
+                        e.printStackTrace()
                         throw e
                     }
                 }
-
-                storage.save(sended)
-            } catch (e: TelegramApiException) {
-                e.printStackTrace()
             }
+
+            storage.save(sended)
+        } catch (e: TelegramApiException) {
+            e.printStackTrace()
         }
     }
 
@@ -276,3 +297,5 @@ class RssUpdateScheduler {
         }
     }
 }
+
+fun Post.isHabr() = link matches Regex("https?:\\/\\/habr\\.com\\/.*")
