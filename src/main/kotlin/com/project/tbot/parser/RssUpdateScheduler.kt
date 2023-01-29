@@ -103,13 +103,24 @@ class RssUpdateScheduler {
                     post.images.isEmpty() && feed.image.isNotBlank() && post.isHabr() -> {
                         val document = Jsoup.parse(URL(post.link), 5000)
 
+                        val images = mutableListOf<Pair<Int, String>>()
+
+                        val imageSrc = document.select("link[rel*=image_src]")
+                        if (imageSrc.isNotEmpty()) {
+                            val link = imageSrc[0].attr("href")
+                            val order = if ("habr.com" !in link) 1 else 5
+                            images += order to link
+                        }
                         val res = document.select("div.tm-article-body img")
                         if (res.isNotEmpty()) {
-                            if (res[0].hasAttr("data-src")) {
-                                post.copy(images = listOf(res[0].attr("data-src")))
+                            images += 2 to if (res[0].hasAttr("data-src")) {
+                                res[0].attr("data-src")
                             } else {
-                                post.copy(images = listOf(res[0].attr("src")))
+                                res[0].attr("src")
                             }
+                        }
+                        if (images.isNotEmpty()) {
+                            post.copy(images = listOf(images.minByOrNull { it.first }!!.second))
                         } else {
                             post
                         }
@@ -126,7 +137,7 @@ class RssUpdateScheduler {
                     post.isHabr() -> {
                         post.copy(
                             description = post.description.replace(
-                                Regex("\\s+\\[[^\\[\\]]*Читать далее[^\\[\\]]*\\]\\([^)]*\\)"),
+                                Regex("\\s+\\[[^]]*\\]\\([^)]*\\)\\s*$"),
                                 ""
                             )
                         )
@@ -158,47 +169,47 @@ class RssUpdateScheduler {
                     else -> {
                         listOf(SendMessage())
                     }
-                }
-            }.let { groups ->
-                groups + post.files.map {
-                    val file = SendDocument()
-                    val pair = getContentFile(it)
-                    file.document = InputFile(pair.second, pair.first)
-                    file
-                }
-            }.let { groups ->
-                groups.first().let { mainDesc ->
-                    when (mainDesc) {
-                        is SendMessage -> {
-                            mainDesc.text = post.description
-                            mainDesc.enableMarkdownV2(true)
-                        }
-
-                        is SendPhoto -> {
-                            mainDesc.caption = post.description
-                            mainDesc.parseMode = "MarkdownV2"
-                        }
-
-                        is SendMediaGroup -> {
-                            mainDesc.media.first().caption = post.description
-                        }
+                }.let { groups ->
+                    groups + post.files.map {
+                        val file = SendDocument()
+                        val pair = getContentFile(it)
+                        file.document = InputFile(pair.second, pair.first)
+                        file
                     }
-
-                    if (post.link.isNotBlank()) {
-                        val title = if (post.title.isBlank()) post.link else post.title
-                        val linkButton = InlineKeyboardButton(title)
-                        linkButton.url = post.link
-
-                        val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
-
+                }.let { groups ->
+                    groups.first().let { mainDesc ->
                         when (mainDesc) {
-                            is SendMessage -> mainDesc.replyMarkup = keyboard
-                            is SendPhoto -> mainDesc.replyMarkup = keyboard
+                            is SendMessage -> {
+                                mainDesc.text = post.description
+                                mainDesc.enableMarkdownV2(true)
+                            }
+
+                            is SendPhoto -> {
+                                mainDesc.caption = post.description
+                                mainDesc.parseMode = "MarkdownV2"
+                            }
+
+                            is SendMediaGroup -> {
+                                mainDesc.media.first().caption = post.description
+                            }
+                        }
+
+                        if (post.link.isNotBlank()) {
+                            val title = if (post.title.isBlank()) post.link else post.title
+                            val linkButton = InlineKeyboardButton(title)
+                            linkButton.url = post.link
+
+                            val keyboard = InlineKeyboardMarkup(mutableListOf(mutableListOf(linkButton)))
+
+                            when (mainDesc) {
+                                is SendMessage -> mainDesc.replyMarkup = keyboard
+                                is SendPhoto -> mainDesc.replyMarkup = keyboard
+                            }
                         }
                     }
-                }
 
-                groups
+                    groups
+                }
             }.let { groups ->
                 groups.forEach { msg ->
                     if (msg is SendPhoto && msg.caption.length > 1000) {
