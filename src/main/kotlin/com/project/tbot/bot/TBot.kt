@@ -75,7 +75,7 @@ class TBot : TelegramLongPollingBot() {
                 }
             }
 
-            txt.startsWith("/remove") -> {
+            txt.startsWith("/remove") || txt.startsWith("/delete") -> {
                 val id = txt.substringAfter(" ", "")
                 val toRemove = storage.getAllSubscribed()
                     .filter { it.chatId == msg.chatId }
