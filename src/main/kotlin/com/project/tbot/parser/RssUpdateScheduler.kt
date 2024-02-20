@@ -21,6 +21,7 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 import java.io.BufferedInputStream
 import java.io.InputStream
 import java.net.URL
@@ -217,27 +218,53 @@ class RssUpdateScheduler {
             }.let { groups ->
                 groups.forEach { msg ->
                     if (msg is SendPhoto && msg.caption.length > 1000) {
-                        var caption = msg.caption.reversed()
-                        while (caption.length > 1000) {
-                            val brackets = mutableListOf<Char>()
-                            var index = 0
-                            while (index == 0 || caption[index] !in " \n" || brackets.isNotEmpty()) {
-                                if (caption[index] in "{}[]()") {
-                                    val c = caption[index]
-                                    val pair = listOf("{}", "[]", "()")
-                                        .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
-                                        .toMap()
-                                    if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
-                                        brackets.removeLast()
-                                    } else {
-                                        brackets += caption[index]
-                                    }
-                                }
-                                index += 1
+                        val caption = msg.caption
+                        val valid = mutableListOf<Int>()
+                        val brackets = mutableListOf<Char>()
+                        for (i in caption.indices) {
+                            val c = caption[i]
+                            if (caption[i] in "{[(") {
+                                brackets += c
                             }
-                            caption = caption.substring(index)
+                            if (caption[i] in "}])") {
+                                val pair = listOf("{}", "[]", "()")
+                                    .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
+                                    .toMap()
+                                if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
+                                    brackets.removeLast()
+                                } else {
+                                    brackets += c
+                                }
+                            }
+                            if (brackets.isEmpty()) {
+                                valid += i
+                            }
                         }
-                        msg.caption = caption.reversed()
+                        msg.caption = caption.substring(0, valid.filter { it <= 1000 }.maxOf { it })
+
+
+//                        var caption = msg.caption.reversed()
+//                        val
+//                        while (caption.length > 1000) {
+//                            val brackets = mutableListOf<Char>()
+//                            var index = 0
+//                            while (index == 0 || caption[index] !in " \n" || brackets.isNotEmpty()) {
+//                                if (caption[index] in "{}[]()") {
+//                                    val c = caption[index]
+//                                    val pair = listOf("{}", "[]", "()")
+//                                        .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
+//                                        .toMap()
+//                                    if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
+//                                        brackets.removeLast()
+//                                    } else {
+//                                        brackets += caption[index]
+//                                    }
+//                                }
+//                                index += 1
+//                            }
+//                            caption = caption.substring(index)
+//                        }
+//                        msg.caption = caption.reversed()
                     }
                 }
                 groups
@@ -264,6 +291,23 @@ class RssUpdateScheduler {
                         } catch (e: TelegramApiException) {
                             System.err.println(msg.toString())
                             e.printStackTrace()
+                            if (e is TelegramApiRequestException && "PHOTO_INVALID_DIMENSIONS" in e.apiResponse) {
+                                try {
+                                    when (msg) {
+                                        is SendMediaGroup -> {
+                                            msg.media.map { media ->
+                                                SendPhoto().apply {
+                                                    setChatId(msg.chatId)
+                                                    setPhoto(media.mediaName)
+                                                }
+                                            }.forEach { send(it, retry - 1) }
+                                        }
+                                    }
+                                } catch (e: Throwable) {
+                                    e.printStackTrace()
+                                }
+                                return
+                            }
                             if (retry > 0) {
                                 send(msg, retry - 1)
                             } else {
