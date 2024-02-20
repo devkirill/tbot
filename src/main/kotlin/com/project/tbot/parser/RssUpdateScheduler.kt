@@ -98,27 +98,31 @@ class RssUpdateScheduler {
         try {
             println(chatId)
 
-            post.let { post ->
-                when {
-                    post.images.isEmpty() && feed.image.isNotBlank() && post.isHabr() -> {
-                        val document = Jsoup.parse(URL(post.link), 5000)
+            post
+                .let { post ->
+                    post.copy(images = post.images.filter { !it.endsWith(".svg") })
+                }
+                .let { post ->
+                    when {
+                        post.images.isEmpty() && feed.image.isNotBlank() && post.isHabr() -> {
+                            val document = Jsoup.parse(URL(post.link), 5000)
 
-                        val images = mutableListOf<Pair<Int, String>>()
+                            val images = mutableListOf<Pair<Int, String>>()
 
-                        val imageSrc = document.select("link[rel*=image_src]")
-                        if (imageSrc.isNotEmpty()) {
-                            val link = imageSrc[0].attr("href")
-                            val order = if ("habr.com" !in link) 1 else 5
-                            images += order to link
-                        }
-                        val res = document.select("div.tm-article-body img")
-                        if (res.isNotEmpty()) {
-                            images += 2 to if (res[0].hasAttr("data-src")) {
-                                res[0].attr("data-src")
-                            } else {
-                                res[0].attr("src")
+                            val imageSrc = document.select("link[rel*=image_src]")
+                            if (imageSrc.isNotEmpty()) {
+                                val link = imageSrc[0].attr("href")
+                                val order = if ("habr.com" !in link) 1 else 5
+                                images += order to link
                             }
-                        }
+                            val res = document.select("div.tm-article-body img")
+                            if (res.isNotEmpty()) {
+                                images += 2 to if (res[0].hasAttr("data-src")) {
+                                    res[0].attr("data-src")
+                                } else {
+                                    res[0].attr("src")
+                                }
+                            }
                         if (images.isNotEmpty()) {
                             post.copy(images = listOf(images.minByOrNull { it.first }!!.second))
                         } else {
@@ -248,22 +252,29 @@ class RssUpdateScheduler {
                 }
                 groups
             }.let { groups ->
-                for (msg in groups) {
-                    try {
-                        when (msg) {
-                            is SendMessage -> bot.execute(msg)
-                            // TODO - split msg if >1024
-                            is SendPhoto -> bot.execute(msg)
-                            is SendMediaGroup -> bot.execute(msg)
-                            is SendDocument -> bot.execute(msg)
+                    fun send(msg: Any, retry: Int = 2) {
+                        try {
+                            when (msg) {
+                                is SendMessage -> bot.execute(msg)
+                                // TODO - split msg if >1024
+                                is SendPhoto -> bot.execute(msg)
+                                is SendMediaGroup -> bot.execute(msg)
+                                is SendDocument -> bot.execute(msg)
+                            }
+                        } catch (e: TelegramApiException) {
+                            System.err.println(msg.toString())
+                            e.printStackTrace()
+                            if (retry > 0) {
+                                send(msg, retry - 1)
+                            } else {
+                                throw e
+                            }
                         }
-                    } catch (e: TelegramApiException) {
-                        System.err.println(msg.toString())
-                        e.printStackTrace()
-                        throw e
+                    }
+                    for (msg in groups) {
+                        send(msg)
                     }
                 }
-            }
 
             storage.save(sended)
         } catch (e: TelegramApiException) {
