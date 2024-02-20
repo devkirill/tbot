@@ -220,15 +220,16 @@ class RssUpdateScheduler {
                     if (msg is SendPhoto && msg.caption.length > 1000) {
                         val caption = msg.caption
                         val valid = mutableListOf<Int>()
-                        val brackets = mutableListOf<Char>()
-                        for (i in caption.indices) {
-                            val c = caption[i]
-                            if (caption[i] in "{[(") {
+                        val brackets = mutableListOf<String>()
+                        var index = 0
+                        while (index < caption.length) {
+                            val c = caption.substring(index..index)
+                            if (c in "{[(") {
                                 brackets += c
                             }
-                            if (caption[i] in "}])") {
+                            if (caption[index] in "}])") {
                                 val pair = listOf("{}", "[]", "()")
-                                    .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
+                                    .flatMap { listOf("${it[0]}" to "${it[1]}", "${it[1]}" to "${it[0]}") }
                                     .toMap()
                                 if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
                                     brackets.removeLast()
@@ -236,35 +237,24 @@ class RssUpdateScheduler {
                                     brackets += c
                                 }
                             }
-                            if (brackets.isEmpty()) {
-                                valid += i
+                            for (l in 3 downTo 1) {
+                                if (index + l - 1 < caption.length) {
+                                    val s = caption.substring(index until index + l)
+                                    if (s == "_".repeat(l) || s == "*".repeat(l)) {
+                                        if (brackets.isNotEmpty() && brackets.last() == s) {
+                                            brackets.removeLast()
+                                        } else {
+                                            brackets += s
+                                        }
+                                    }
+                                }
                             }
+                            if (brackets.isEmpty()) {
+                                valid += index + 1
+                            }
+                            index++
                         }
                         msg.caption = caption.substring(0, valid.filter { it <= 1000 }.maxOf { it })
-
-
-//                        var caption = msg.caption.reversed()
-//                        val
-//                        while (caption.length > 1000) {
-//                            val brackets = mutableListOf<Char>()
-//                            var index = 0
-//                            while (index == 0 || caption[index] !in " \n" || brackets.isNotEmpty()) {
-//                                if (caption[index] in "{}[]()") {
-//                                    val c = caption[index]
-//                                    val pair = listOf("{}", "[]", "()")
-//                                        .flatMap { listOf(it[0] to it[1], it[1] to it[0]) }
-//                                        .toMap()
-//                                    if (brackets.isNotEmpty() && brackets.last() == pair[c]) {
-//                                        brackets.removeLast()
-//                                    } else {
-//                                        brackets += caption[index]
-//                                    }
-//                                }
-//                                index += 1
-//                            }
-//                            caption = caption.substring(index)
-//                        }
-//                        msg.caption = caption.reversed()
                     }
                 }
                 groups
